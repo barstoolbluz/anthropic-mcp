@@ -1,0 +1,157 @@
+# flox manifest
+version = 1
+
+[install]
+pip.pkg-path = "python312Packages.pip"
+uv.pkg-path = "uv"
+curl.pkg-path = "curl"
+bat.pkg-path = "bat"
+gum.pkg-path = "gum"
+nodejs.pkg-path = "nodejs"
+
+[vars]
+# core config
+MCP_SERVER_NAME = "mcp-server"
+MCP_SERVER_VERSION = "0.1.0"
+# scripts source
+MCP_SCRIPTS_REPO = "https://raw.githubusercontent.com/barstoolbluz/anthropic-mcp/main/.flox/cache"
+# MCP_ENV_MODE = "dev"
+# MCP_AUTO_START = "true"
+
+[hook]
+on-activate = '''
+# setup dirs
+mkdir -p "${FLOX_ENV_CACHE}/mcp" "${FLOX_ENV_CACHE}/bin" "${FLOX_ENV_CACHE}/scripts"
+
+# get shell scripts
+if [ ! -f "${FLOX_ENV_CACHE}/scripts/mcp-bash.sh" ]; then
+  echo "Downloading MCP shell function scripts..."
+  curl -s -o "${FLOX_ENV_CACHE}/scripts/mcp-bash.sh" "${MCP_SCRIPTS_REPO}/scripts/mcp-bash.sh"
+  curl -s -o "${FLOX_ENV_CACHE}/scripts/mcp-zsh.sh" "${MCP_SCRIPTS_REPO}/scripts/mcp-zsh.sh"
+  curl -s -o "${FLOX_ENV_CACHE}/scripts/mcp-fish.fish" "${MCP_SCRIPTS_REPO}/scripts/mcp-fish.fish"
+  chmod +x "${FLOX_ENV_CACHE}/scripts/mcp-"*
+fi
+
+# load bash funcs
+source "${FLOX_ENV_CACHE}/scripts/mcp-bash.sh"
+
+# install mcp cli
+if ! command -v "${FLOX_ENV_CACHE}/venv/bin/mcp" &> /dev/null; then
+  echo "Installing MCP with CLI tools..."
+  
+  # handle ld_audit
+  [ -n "$LD_AUDIT" ] && { LD_AUDIT_BACKUP="$LD_AUDIT"; export LD_AUDIT_BACKUP; unset LD_AUDIT; }
+  
+  # create venv and install
+  uv venv "${FLOX_ENV_CACHE}/venv" --seed --link-mode=copy
+  source "${FLOX_ENV_CACHE}/venv/bin/activate"
+  pip install "mcp[cli]"
+  deactivate
+  
+  # restore ld_audit
+  [ -n "$LD_AUDIT_BACKUP" ] && { export LD_AUDIT="$LD_AUDIT_BACKUP"; unset LD_AUDIT_BACKUP; }
+fi
+
+# load/set mode
+[ -f "${FLOX_ENV_CACHE}/mcp/config.sh" ] && source "${FLOX_ENV_CACHE}/mcp/config.sh" || export MCP_ENV_MODE="dev"
+
+# first run setup
+FIRST_RUN_MARKER="${FLOX_ENV_CACHE}/.first_run_complete"
+if [[ ! -f "$FIRST_RUN_MARKER" && ! -f "server.py" ]]; then
+  echo "First run detected. Creating server.py automatically..."
+  create_server_template "server.py"
+  echo "Server file created. Run with: mcp-dev server.py"
+  touch "$FIRST_RUN_MARKER"
+fi
+
+# show help
+info
+'''
+
+[profile]
+bash = '''
+# add to path
+export PATH="${FLOX_ENV_CACHE}/bin:${FLOX_ENV_CACHE}/venv/bin:$PATH"
+export PYTHONPATH=".:$PYTHONPATH"
+
+# load functions
+source "${FLOX_ENV_CACHE}/scripts/mcp-bash.sh"
+
+# create shortcut
+if [ -f "$FLOX_ENV_PROJECT/.mcp-server-command.sh" ]; then
+  mcp-server() {
+    export MCP_SERVICE_MODE="manual"
+    "$FLOX_ENV_PROJECT/.mcp-server-command.sh"
+  }
+  export -f mcp-server
+fi
+'''
+
+zsh = '''
+# add to path
+export PATH="${FLOX_ENV_CACHE}/bin:${FLOX_ENV_CACHE}/venv/bin:$PATH" 
+export PYTHONPATH=".:$PYTHONPATH"
+
+# load functions
+source "${FLOX_ENV_CACHE}/scripts/mcp-zsh.sh"
+
+# create shortcut
+if [ -f "$FLOX_ENV_PROJECT/.mcp-server-command.sh" ]; then
+  mcp-server() {
+    export MCP_SERVICE_MODE="manual"
+    "$FLOX_ENV_PROJECT/.mcp-server-command.sh"
+  }
+fi
+'''
+
+fish = '''
+# add to path
+set -gx PATH "$FLOX_ENV_CACHE/bin" "$FLOX_ENV_CACHE/venv/bin" $PATH
+set -gx PYTHONPATH "." $PYTHONPATH
+
+# load functions
+source "$FLOX_ENV_CACHE/scripts/mcp-fish.fish"
+
+# create shortcut
+if test -f "$FLOX_ENV_PROJECT/.mcp-server-command.sh"
+  function mcp-server
+    set -gx MCP_SERVICE_MODE "manual"
+    "$FLOX_ENV_PROJECT/.mcp-server-command.sh"
+  end
+end
+'''
+
+[services]
+# run mcp server
+mcp-server.command = '''#!/usr/bin/env bash
+# preserve ld_audit
+[ -n "$LD_AUDIT" ] && { LD_AUDIT_BACKUP="$LD_AUDIT"; export LD_AUDIT_BACKUP; unset LD_AUDIT; }
+
+# add venv to path
+export PATH="${FLOX_ENV_CACHE}/venv/bin:$PATH"
+
+# run server
+if [ -f "${FLOX_ENV_PROJECT}/.mcp-server-command.sh" ]; then
+  "${FLOX_ENV_PROJECT}/.mcp-server-command.sh"
+else
+  cd "${FLOX_ENV_PROJECT}"
+  if [ "${MCP_ENV_MODE:-dev}" = "run" ]; then
+    "${FLOX_ENV_CACHE}/venv/bin/mcp" run server.py
+  else
+    "${FLOX_ENV_CACHE}/venv/bin/mcp" dev server.py
+  fi
+fi
+
+# restore ld_audit
+[ -n "$LD_AUDIT_BACKUP" ] && { export LD_AUDIT="$LD_AUDIT_BACKUP"; unset LD_AUDIT_BACKUP; }
+'''
+
+[options]
+# compatible systems
+systems = [
+  "aarch64-darwin",
+  "aarch64-linux",
+  "x86_64-darwin",
+  "x86_64-linux",
+]
+# cuda-detection = false
