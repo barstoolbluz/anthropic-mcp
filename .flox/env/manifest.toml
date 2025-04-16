@@ -8,6 +8,7 @@ curl.pkg-path = "curl"
 bat.pkg-path = "bat"
 gum.pkg-path = "gum"
 nodejs.pkg-path = "nodejs"
+bash.pkg-path = "bash"
 
 [vars]
 # core config
