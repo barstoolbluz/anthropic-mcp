@@ -124,7 +124,7 @@ end
 
 [services]
 # run mcp server
-mcp-server.command = '''#!/usr/bin/env bash
+mcp-server.command = '''
 # preserve ld_audit
 [ -n "$LD_AUDIT" ] && { LD_AUDIT_BACKUP="$LD_AUDIT"; export LD_AUDIT_BACKUP; unset LD_AUDIT; }
 
