@@ -28,8 +28,8 @@ mkdir -p "${FLOX_ENV_CACHE}/mcp" "${FLOX_ENV_CACHE}/bin" "${FLOX_ENV_CACHE}/scri
 if [ ! -f "${FLOX_ENV_CACHE}/scripts/mcp-bash.sh" ]; then
   echo "Downloading MCP shell function scripts..."
   curl -s -o "${FLOX_ENV_CACHE}/scripts/mcp-bash.sh" "${MCP_SCRIPTS_REPO}/scripts/mcp-bash.sh"
-  curl -s -o "${FLOX_ENV_CACHE}/scripts/mcp-zsh.sh" "${MCP_SCRIPTS_REPO}/scripts/mcp-zsh.sh"
-  curl -s -o "${FLOX_ENV_CACHE}/scripts/mcp-fish.fish" "${MCP_SCRIPTS_REPO}/scripts/mcp-fish.fish"
+#  curl -s -o "${FLOX_ENV_CACHE}/scripts/mcp-zsh.sh" "${MCP_SCRIPTS_REPO}/scripts/mcp-zsh.sh"
+#  curl -s -o "${FLOX_ENV_CACHE}/scripts/mcp-fish.fish" "${MCP_SCRIPTS_REPO}/scripts/mcp-fish.fish"
   chmod +x "${FLOX_ENV_CACHE}/scripts/mcp-"*
 fi
 
